@@ -1,0 +1,4 @@
+localhost:2080 {
+    reverse_proxy vaultwarden:80
+    tls internal
+}
