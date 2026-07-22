@@ -134,6 +134,11 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
               name: 'SIGNUPS_ALLOWED'
               value: 'false'
             }
+            {
+              //SMB network filesystem does not support WAL - https://github.com/dani-garcia/vaultwarden/wiki/Running-without-WAL-enabled
+              name: 'ENABLE_DB_WAL' 
+              value: 'false'
+            }
           ]
           volumeMounts: [
             {
