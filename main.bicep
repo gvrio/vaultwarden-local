@@ -135,15 +135,19 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
               value: 'false'
             }
             {
-              //SMB network filesystem does not support WAL - https://github.com/dani-garcia/vaultwarden/wiki/Running-without-WAL-enabled
+              name: 'SSO_ALLOW_UNKNOWN_EMAIL_VERIFICATION'
+              value: 'true'
+            }
+            {
               name: 'ENABLE_DB_WAL' 
-              value: 'false'
+              value: 'true'
             }
           ]
           volumeMounts: [
             {
               volumeName: 'vw-data'
               mountPath: '/data'
+              
             }
           ]
         }
@@ -153,6 +157,7 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
           name: 'vw-data'
           storageName: storageEnv.name
           storageType:'AzureFile'
+          mountOptions: 'uid=0,gid=0,dir_mode=0777,file_mode=0777,mfsymlinks,nobrl'
         }
       ]
       
