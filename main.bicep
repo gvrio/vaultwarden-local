@@ -1,11 +1,22 @@
+param uniqueSuffix string = uniqueString(resourceGroup().id)
+
 @description('Specify container app name')
-param containerAppName string = 'containerapp-${uniqueString(resourceGroup().id)}'
+param containerAppName string = 'containerapp-${uniqueSuffix}'
 
-@description('Specify container app env')
-param containerAppEnvName string = 'containerapp-env-${uniqueString(resourceGroup().id)}'
+@description('Specify container app env name')
+param containerAppEnvName string = 'containerapp-env-${uniqueSuffix}'
 
-@description('Specify container app log space')
-param containerAppLogName string = 'containerapp-log-${uniqueString(resourceGroup().id)}'
+@description('Specify container app log name')
+param containerAppLogName string = 'containerapp-log-${uniqueSuffix}'
+
+@description('Specify storage account name')
+param storageAccountName string = 'stacc${uniqueSuffix}'
+
+@description('Specify storage env name')
+param storageEnvName string = 'stenv${uniqueSuffix}'
+
+@description('Specify file share name')
+param fileShareName string = 'vw-data'
 
 @description('Specify deployment location')
 param location string = 'canadaeast'
@@ -92,9 +103,6 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
           image: vaultwardenContainerImage
           env: [
             {
-              // computed, not a placeholder — the environment's default domain is
-              // known independently of this container app, so the FQDN can be
-              // built ahead of the app actually existing
               name: 'DOMAIN'
               value: 'https://${containerAppName}.${containerAppEnv.properties.defaultDomain}'
             }
@@ -127,8 +135,22 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
               value: 'false'
             }
           ]
+          volumeMounts: [
+            {
+              volumeName: 'vw-data'
+              mountPath: '/data'
+            }
+          ]
         }
       ]
+      volumes: [
+        {
+          name: 'vw-data'
+          storageName: storageEnv.name
+          storageType:'AzureFile'
+        }
+      ]
+      
       scale: {
         minReplicas: minReplica
         maxReplicas: maxReplica
@@ -136,3 +158,42 @@ resource containerApp 'Microsoft.App/containerApps@2026-01-01' = {
     }
   }
 }
+
+resource storageAccount 'Microsoft.Storage/storageAccounts@2026-04-01' = {
+  name: storageAccountName
+  location: location
+  kind: 'StorageV2'
+  sku: {
+    name:'Standard_LRS'
+  }
+}
+
+resource storageEnv 'Microsoft.App/managedEnvironments/storages@2026-01-01' ={
+  parent: containerAppEnv
+  name: storageEnvName
+  properties: {
+    azureFile: {
+      accountName: storageAccount.name
+      accountKey: storageAccount.listKeys().keys[0].value
+      shareName: fileStorage.name
+      accessMode: 'ReadWrite'
+    }
+  }
+}
+
+resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2026-04-01' existing = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource fileStorage 'Microsoft.Storage/storageAccounts/fileServices/shares@2026-04-01' = {
+  parent: fileService
+  name: fileShareName
+  properties: {
+    shareQuota: 1
+    enabledProtocols: 'SMB'
+    accessTier: 'TransactionOptimized'
+  }
+}
+
+
